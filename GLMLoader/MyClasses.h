@@ -53,6 +53,13 @@ public:
 
     void fillIn()
     {
+		//////////////////////////////////////////////////////
+		////                                              ////
+		//// there is problem assigning the texcoords     ////
+		////                                              ////
+		//////////////////////////////////////////////////////
+
+
         //vertices coordinates
         GLfloat *ptr = &glmModel->vertices[3];
         for(int i = 0; i < glmModel->numvertices; i++)

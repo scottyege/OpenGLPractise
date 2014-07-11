@@ -129,7 +129,7 @@ void calCameraSet()
     cameraProp.up = glm::vec3(0.0f, 1.0f, 0.0f);
     cameraProp.at = xdModel->center;
 
-    cameraProp.fov = 45.0f;
+    cameraProp.fov = 30.0f;
 
     float distanceToCamera = xdModel->boundingShpereRadius / tanf(M_PI * cameraProp.fov / 360.0f);
     cameraProp.eye = xdModel->center;
@@ -147,7 +147,7 @@ Returns 1 when all is ok, 0 with a displayed error
 int init_resources(void)
 {
     //loading model
-    xdModel = new xDModel("teapot.obj");
+    xdModel = new xDModel("teapot2.obj");
     //
     //setting shader
     GLint link_ok = GL_FALSE;
