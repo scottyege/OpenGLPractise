@@ -106,7 +106,7 @@ xDMaterial modelMat =
 
 void loadTexture()
 {
-    
+
     int width, height, channels;
     unsigned char *ht_map = SOIL_load_image
                             (
@@ -194,26 +194,6 @@ int init_resources(void)
     )
         return 0;
 
-    //vertex buffer
-    glGenBuffers(1, &buffers.vertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffers.vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, xdModel->vertices.size() * sizeof(glm::vec3), &xdModel->vertices[0], GL_STATIC_DRAW);
-
-    //normal buffer
-    glGenBuffers(1, &buffers.normalBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffers.normalBuffer);
-    glBufferData(GL_ARRAY_BUFFER, xdModel->normals.size() * sizeof(glm::vec3), &xdModel->normals[0], GL_STATIC_DRAW);
-
-    //texture buffer
-    glGenBuffers(1, &buffers.textureBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffers.textureBuffer);
-    glBufferData(GL_ARRAY_BUFFER, xdModel->texcoords.size() * sizeof(glm::vec2), &xdModel->texcoords[0], GL_STATIC_DRAW);
-
-    //element buffer
-    glGenBuffers(1, &buffers.elementBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers.elementBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, xdModel->elements.size() * sizeof(GLuint), &xdModel->elements[0], GL_STATIC_DRAW);
-
     loadTexture();
     calCameraSet();
 
@@ -236,7 +216,6 @@ void onDisplay()
     glEnableVertexAttribArray(attriLoc.vObjNormal);
     glEnableVertexAttribArray(attriLoc.vTex);
 
-    GLMmodel *m = xdModel->glmModel;
 
     glUniform4fv(uniformLoc.lightDiffuse, 1, glm::value_ptr(plight.diffuse));
     glUniform4fv(uniformLoc.lightAmbient, 1, glm::value_ptr(plight.ambient));
@@ -244,18 +223,25 @@ void onDisplay()
     glUniform4fv(uniformLoc.mat_diffuse, 1, glm::value_ptr(modelMat.diffuse));
     glUniform4fv(uniformLoc.mat_ambient, 1, glm::value_ptr(modelMat.ambient));
 
-    glBindBuffer(GL_ARRAY_BUFFER, buffers.normalBuffer);
-    glVertexAttribPointer(attriLoc.vObjNormal, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    GLMmodel *m = xdModel->glmModel;
 
-    glBindBuffer(GL_ARRAY_BUFFER, buffers.textureBuffer);
-    glVertexAttribPointer(attriLoc.vTex, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glBegin(GL_TRIANGLES);
+    for(int i = 0; i < m->numtriangles; i++)
+    {
+        for(int j = 0; j < 3; j++)
+        {
+            GLuint vIdx = m->triangles[i].vindices[j] * 3;
+            GLuint nIdx = m->triangles[i].nindices[j] * 3;
+            GLuint tIdx = m->triangles[i].tindices[j] * 2;
 
-    glBindBuffer(GL_ARRAY_BUFFER, buffers.vertexBuffer);
-    glVertexAttribPointer(attriLoc.vObjPos, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glVertexAttrib3fv(attriLoc.vObjNormal, &m->normals[nIdx]);
+            glVertexAttrib3fv(attriLoc.vTex, &m->texcoords[tIdx]);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers.elementBuffer);
+            glVertexAttrib3fv(attriLoc.vObjPos, &m->vertices[vIdx]);
+        }
+    }
+    glEnd();
 
-    glDrawElements(GL_TRIANGLES, xdModel->elements.size(),	GL_UNSIGNED_INT, 0);
 
     glDisableVertexAttribArray(attriLoc.vObjPos);
     glDisableVertexAttribArray(attriLoc.vObjNormal);
@@ -269,11 +255,6 @@ void onDisplay()
 void free_resources()
 {
     glDeleteProgram(program);
-
-    glDeleteBuffers(1, &buffers.elementBuffer);
-    glDeleteBuffers(1, &buffers.normalBuffer);
-    glDeleteBuffers(1, &buffers.vertexBuffer);
-    glDeleteBuffers(1, &buffers.textureBuffer);
 
     if(xdModel)
         delete xdModel;
