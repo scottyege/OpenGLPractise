@@ -226,22 +226,29 @@ void onDisplay()
     GLMmodel *m = xdModel->glmModel;
 
     glBegin(GL_TRIANGLES);
-    for(int i = 0; i < m->numtriangles; i++)
+
+    GLMgroup *gg = m->groups;
+    while(gg != NULL)
     {
-        for(int j = 0; j < 3; j++)
+        for(int i = 0; i < gg->numtriangles; i++)
         {
-            GLuint vIdx = m->triangles[i].vindices[j] * 3;
-            GLuint nIdx = m->triangles[i].nindices[j] * 3;
-            GLuint tIdx = m->triangles[i].tindices[j] * 2;
+            GLuint triIdx = gg->triangles[i];
+            for(int j = 0; j < 3; j++)
+            {
+                GLuint vIdx = m->triangles[triIdx].vindices[j] * 3;
+                GLuint nIdx = m->triangles[triIdx].nindices[j] * 3;
+                GLuint tIdx = m->triangles[triIdx].tindices[j] * 2;
 
-            glVertexAttrib3fv(attriLoc.vObjNormal, &m->normals[nIdx]);
-            glVertexAttrib3fv(attriLoc.vTex, &m->texcoords[tIdx]);
+                glVertexAttrib3fv(attriLoc.vObjNormal, &m->normals[nIdx]);
+                glVertexAttrib3fv(attriLoc.vTex, &m->texcoords[tIdx]);
 
-            glVertexAttrib3fv(attriLoc.vObjPos, &m->vertices[vIdx]);
+                glVertexAttrib3fv(attriLoc.vObjPos, &m->vertices[vIdx]);
+            }
         }
+        gg = gg->next;
     }
-    glEnd();
 
+    glEnd();
 
     glDisableVertexAttribArray(attriLoc.vObjPos);
     glDisableVertexAttribArray(attriLoc.vObjNormal);
@@ -283,10 +290,18 @@ void onIdle()
 
     glUseProgram(program);
     //
+    //teapot transformation
     float angle = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 45.0f;
     glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 model = rotate * glm::translate(glm::mat4(1.0f), -xdModel->center);
-    glm::mat4 view = glm::lookAt(cameraProp.eye, cameraProp.at, cameraProp.up);
+
+    //translate and rotate camera position
+    glm::vec4 e4 = glm::vec4(cameraProp.eye, 1.0f);
+    float angle2 = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 35.0f;
+    glm::vec4 camPos = glm::rotate(glm::mat4(1.0f), angle2, glm::vec3(0.0f, 1.0f, 0.0f)) * e4;
+    glm::mat4 view = glm::lookAt(glm::vec3(camPos), cameraProp.at, cameraProp.up);
+
+    //projection matrix
     glm::mat4 projection = glm::perspective(cameraProp.fov, 1.0f*screen_width/screen_height, 0.1f, 1000.0f);
 
     glUniformMatrix4fv(uniformLoc.modelMatrix, 1, GL_FALSE, glm::value_ptr(model));
