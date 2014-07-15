@@ -175,7 +175,6 @@ int init_resources(void)
             || !getAttributeLoc(program, "vObjNormal", attriLoc.vObjNormal)
             || !getAttributeLoc(program, "vTex", attriLoc.vTex)
       )
-
         return 0;
 
     //uniforms
@@ -200,6 +199,15 @@ int init_resources(void)
     return 1;
 }
 
+glm::mat4 teapotMatrix;
+glm::mat4 smallTeapotMatrix;
+
+glm::mat4 viewMatrix;
+glm::mat4 projectionMatrix;
+
+glm::mat4 lightMatrix;
+glm::mat3 normalMatrix;
+
 void onDisplay()
 {
 
@@ -223,10 +231,18 @@ void onDisplay()
     glUniform4fv(uniformLoc.mat_diffuse, 1, glm::value_ptr(modelMat.diffuse));
     glUniform4fv(uniformLoc.mat_ambient, 1, glm::value_ptr(modelMat.ambient));
 
+    glUniformMatrix4fv(uniformLoc.lightModelMatrix, 1, GL_FALSE, glm::value_ptr(lightMatrix));
+
+    glUniformMatrix4fv(uniformLoc.modelMatrix, 1, GL_FALSE, glm::value_ptr(teapotMatrix));
+    glUniformMatrix4fv(uniformLoc.viewMatrix, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+    glUniformMatrix4fv(uniformLoc.projMatrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glUniformMatrix3fv(uniformLoc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
     GLMmodel *m = xdModel->glmModel;
 
-    glBegin(GL_TRIANGLES);
 
+    //draw the big teapot
+    glBegin(GL_TRIANGLES);
     GLMgroup *gg = m->groups;
     while(gg != NULL)
     {
@@ -247,12 +263,39 @@ void onDisplay()
         }
         gg = gg->next;
     }
+    glEnd();
 
+
+    glUniformMatrix4fv(uniformLoc.modelMatrix, 1, GL_FALSE, glm::value_ptr(smallTeapotMatrix));
+    //draw the small teapot
+    glBegin(GL_TRIANGLES);
+    gg = m->groups;
+    while(gg != NULL)
+    {
+        for(int i = 0; i < gg->numtriangles; i++)
+        {
+            GLuint triIdx = gg->triangles[i];
+            for(int j = 0; j < 3; j++)
+            {
+                GLuint vIdx = m->triangles[triIdx].vindices[j] * 3;
+                GLuint nIdx = m->triangles[triIdx].nindices[j] * 3;
+                GLuint tIdx = m->triangles[triIdx].tindices[j] * 2;
+
+                glVertexAttrib3fv(attriLoc.vObjNormal, &m->normals[nIdx]);
+                glVertexAttrib3fv(attriLoc.vTex, &m->texcoords[tIdx]);
+
+                glVertexAttrib3fv(attriLoc.vObjPos, &m->vertices[vIdx]);
+            }
+        }
+        gg = gg->next;
+    }
     glEnd();
 
     glDisableVertexAttribArray(attriLoc.vObjPos);
     glDisableVertexAttribArray(attriLoc.vObjNormal);
     glDisableVertexAttribArray(attriLoc.vTex);
+
+    glUseProgram(0);
 
 
     /* Display the result */
@@ -288,32 +331,33 @@ void onIdle()
         printf("fps: %f\n", fps);
     }
 
-    glUseProgram(program);
     //
     //teapot transformation
-    float angle = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 45.0f;
+    float angle = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 50.0f;
     glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 model = rotate * glm::translate(glm::mat4(1.0f), -xdModel->center);
+    teapotMatrix = rotate * glm::translate(glm::mat4(1.0f), -xdModel->center);
 
     //translate and rotate camera position
     glm::vec4 e4 = glm::vec4(cameraProp.eye, 1.0f);
-    float angle2 = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 35.0f;
+    float angle2 = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 10.0f;
     glm::vec4 camPos = glm::rotate(glm::mat4(1.0f), angle2, glm::vec3(0.0f, 1.0f, 0.0f)) * e4;
-    glm::mat4 view = glm::lookAt(glm::vec3(camPos), cameraProp.at, cameraProp.up);
+    viewMatrix = glm::lookAt(glm::vec3(camPos), cameraProp.at, cameraProp.up);
 
     //projection matrix
-    glm::mat4 projection = glm::perspective(cameraProp.fov, 1.0f*screen_width/screen_height, 0.1f, 1000.0f);
+    projectionMatrix = glm::perspective(cameraProp.fov, 1.0f*screen_width/screen_height, 0.1f, 1000.0f);
 
-    glUniformMatrix4fv(uniformLoc.modelMatrix, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(uniformLoc.viewMatrix, 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(uniformLoc.projMatrix, 1, GL_FALSE, glm::value_ptr(projection));
+    //normal matrix
+    normalMatrix = glm::mat3(glm::transpose(glm::inverse(viewMatrix * teapotMatrix)));
 
-    glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(view * model)));
-    glUniformMatrix3fv(uniformLoc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    //for small teapot, which will rotate around the big teapot
+    glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.2f)) * glm::translate(glm::mat4(1.0f), -xdModel->center);
+    glm::mat4 translateNearBig = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    float angle3 = glutGet(GLUT_ELAPSED_TIME) / 1000.0f * 25.0f;
+    glm::mat4 rotate3 = glm::rotate(glm::mat4(1.0f), angle3, glm::vec3(0.0f, 1.0f, 0.0f));
+    smallTeapotMatrix = rotate3 * translateNearBig * scale;
 
     //light transformation
-    glm::mat4 lightModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(sinf(glutGet(GLUT_ELAPSED_TIME) / 1000.0 * (2*3.14) / 5) * 50.0f, 15.0f, 0.0f));
-    glUniformMatrix4fv(uniformLoc.lightModelMatrix, 1, GL_FALSE, glm::value_ptr(lightModelMatrix));
+    lightMatrix = rotate3 * translateNearBig;
 
     glutPostRedisplay();
 }
